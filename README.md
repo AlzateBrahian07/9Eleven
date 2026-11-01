@@ -161,7 +161,7 @@ Datos de ejemplo incluidos: 1 administrador, 4 categorías (Bebidas, Snacks, Lá
 | un producto que ya se vendió | la base lo **rechaza** (no hay `ON DELETE`) |
 | el administrador con ventas | la base lo **rechaza** |
 
-- **Falta una tabla de entradas de mercancía.** El requerimiento RF-12 pide registrar fecha, proveedor, producto, cantidad y precio unitario, y el modelo no lo soporta. Ver [`ISSUES.md`](ISSUES.md).
+- **Falta una tabla de entradas de mercancía.** El requerimiento RF-12 pide registrar fecha, proveedor, producto, cantidad y precio unitario, y el modelo no lo soporta.
 - **Las contraseñas están en texto plano** en el script de ejemplo. Ver la advertencia de seguridad más abajo.
 
 ---
@@ -307,7 +307,7 @@ git push origin feature/nombre-corto
 - Ramas: `feature/…`, `fix/…`, `docs/…`.
 - Commits sugeridos: `feat:`, `fix:`, `docs:`, `refactor:`.
 - Todo cambio entra por **Pull Request** con al menos una revisión.
-- Mira las [issues](../../issues) con la etiqueta `good first issue` para empezar.
+- Mira las [issues] con la etiqueta `good first issue` para empezar.
 
 ### Buenas prácticas que pedimos
 
@@ -348,7 +348,7 @@ El documento de revisión de requerimientos aprobó el alcance pero dejó **tres
 | Reportes que faltan: movimientos de inventario, stock bajo y valor del inventario | RF-14 |
 | Recuperar una contraseña olvidada por correo | RF-03 / CU 1.2 |
 
-El listado completo de tareas, con descripción y criterios de aceptación, está en [`ISSUES.md`](ISSUES.md).
+El listado completo de tareas, con descripción y criterios de aceptación en Issues.
 
 ---
 
