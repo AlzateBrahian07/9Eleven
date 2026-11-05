@@ -10,19 +10,73 @@ $vista = $_GET['vista'] ?? 'lista';
 // ----------------------------------------------------
 // ACCIÓN: Nueva categoría
 // ----------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nueva'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nueva'])) 
+{
     $nombre = trim($_POST['nombre'] ?? '');
 
-    if ($nombre === '') {
+    if ($nombre === '') 
+    {
         $error = 'El nombre de la categoría es obligatorio.';
         $vista = 'nueva';
-    } else {
-        $stmt = $pdo->prepare("INSERT INTO categorias (nombreCategoria) VALUES (?)");
-        $stmt->execute([$nombre]);
-        $exito = "Categoría \"$nombre\" creada correctamente.";
-        $vista = 'lista';
+    } else 
+    {
+        $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria =?");
+        $stmtcheck->execute([$nombre]);
+
+        if ($stmtcheck->fetchColumn() > 0)
+            {
+                $error = "Ya existe esta categoria con el nombre \"$nombre\".";
+                $vista = 'nueva';
+            } else 
+            {
+                $stmt = $pdo->prepare("INSERT INTO categorias (nombreCategorias) VALUES (?)");
+                $stmt->execute([$nombre]);
+                $exito = "Categoria \"$nombre\" creada correctamente";
+                $vista = 'lista';
+            }
     }
 }
+
+//-----------------------------------------------------
+//ACCIÓN: Editar Categoria
+//-----------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar']))
+{
+    $nombreActual = trim($_POST['nombre_actual'] ?? '');
+    $nombreNuevo = trim($_POST['nombre_nuevo'] ?? '');
+
+    if ($nombreActual === '' || $nombreNuevo === '')
+        {
+            $error = "Ambos campos son obligatorios";
+            $vista = 'editar';
+        } else
+        {
+            //Validar que el nuevo nombre no existe en otra categoria
+            $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria =?");
+            $stmtcheck->execute([$nombreNuevo]);
+
+            if ($stmtcheck->fetchColumn()>0)
+                {
+                    $error = "Ya existe una categoria con el nombre \"$nombre\".";
+                    $vista = 'editar';
+                } else 
+                {
+                    //actualiza el nombre
+                    $stmt = $pdo->prepare("UPDATE categorias SET nombreCategoria = ? WHERE nombreCategoria = ?");
+                    $stmt->execute([$nombreNuevo,$nombreActual]);
+                }
+                if ($stmt->rowcount() > 0)
+                    {
+                        $exito = "Categoria \"$nombreActual\" renombrada a \"$nombreNuevo\" correctamente.";
+                        $vista = 'lista';
+                    } else 
+                    {
+                        $error = "No se encontro una categoria llamada \"$nombreActual\".";
+                        $vista = 'editar';
+                    }
+        }
+}
+
 
 // ----------------------------------------------------
 // ACCIÓN: Eliminar categoría
@@ -100,6 +154,7 @@ $categorias = $stmt->fetchAll();
                 <h2>Lista de Categorías</h2>
                 <div class="barra-acciones" style="margin-bottom:0;">
                     <a href="categorias.php?vista=consultar" class="btn btn-rojo">Buscar categoria</a>
+                    <a href="categorias.php?vista=editar" class="btn btn-rojo">Editar categoria</a>
                     <a href="categorias.php?vista=eliminar" class="btn btn-rojo">Eliminar categoria</a>
                     <a href="categorias.php?vista=nueva" class="btn btn-rojo">+ Nueva categoria</a>
                 </div>
@@ -120,6 +175,26 @@ $categorias = $stmt->fetchAll();
                     </form>
                 </div>
 
+
+                <?php elseif ($vista === 'editar'): ?>
+                <div class="form-box" style="margin:15px auto;">
+                    <h2>Editar categoría</h2>
+                    <form method="POST" action="categorias.php">
+                        <div class="form-grupo">
+                            <label for="nombre_actual">Nombre actual</label>
+                            <input type="text" id="nombre_actual" name="nombre_actual" required>
+                        </div>
+                        <div class="form-grupo">
+                            <label for="nombre_nuevo">Nuevo nombre</label>
+                            <input type="text" id="nombre_nuevo" name="nombre_nuevo" required>
+                        </div>
+                        <div class="acciones-form">
+                            <a href="categorias.php" class="btn">Cancelar</a>
+                            <button type="submit" name="accion_editar" class="btn btn-rojo">Guardar cambios</button>
+                        </div>
+                    </form>
+                </div>
+                
             <?php elseif ($vista === 'consultar'): ?>
                 <div class="form-box" style="margin:15px auto;">
                     <h2>Consultar categoría</h2>
