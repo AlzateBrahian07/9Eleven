@@ -254,6 +254,9 @@ ALTER TABLE `detalle_ventas`
   ADD CONSTRAINT `fk_detalle_venta` FOREIGN KEY (`ID_Venta`) REFERENCES `ventas` (`ID_Venta`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_detalle_prod` FOREIGN KEY (`ID_Producto`) REFERENCES `productos` (`ID_Producto`) ON UPDATE CASCADE;
 
+-- Para que no guarde categorias con el mismo nombre
+ALTER TABLE categorias ADD UNIQUE (nombreCategoria);
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
