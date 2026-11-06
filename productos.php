@@ -15,7 +15,8 @@ $categorias = $pdo->query("SELECT * FROM categorias ORDER BY nombreCategoria")->
 // ----------------------------------------------------
 // ACCIÓN: Agregar producto
 // ----------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo'])) 
+{
     $codigo       = trim($_POST['codigo'] ?? '');
     $nombre       = trim($_POST['nombre'] ?? '');
     $idCategoria  = $_POST['categoria'] ?: null;
@@ -25,11 +26,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo'])) {
     $stockActual  = (int)($_POST['stock_actual'] ?? 0);
     $stockMinimo  = (int)($_POST['stock_minimo'] ?? 0);
 
-    if ($codigo === '' || $nombre === '') {
+  if ($codigo === '' || $nombre === '') 
+    {
         $error = 'Código y nombre del producto son obligatorios.';
         $vista = 'nuevo';
-    } else {
-        try {
+    } elseif ($precioCompra < 0 || $precioVenta < 0 || $stockActual < 0 || $stockMinimo < 0) 
+    {
+        $error = 'Los precios y el stock no pueden ser negativos.';
+        $vista = 'nuevo';
+    } else 
+    {
+        try 
+        {
             $stmt = $pdo->prepare(
                 "INSERT INTO productos
                  (codigoProducto, nombreProducto, precioCompra, precioVenta, iva, stockActual, stockMinimo, ID_Categoria)
@@ -38,11 +46,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo'])) {
             $stmt->execute([$codigo, $nombre, $precioCompra, $precioVenta, $iva, $stockActual, $stockMinimo, $idCategoria]);
             $exito = "Producto \"$nombre\" agregado correctamente.";
             $vista = 'lista';
-        } catch (PDOException $e) {
+        } catch (PDOException $e) 
+        {
             $error = ($e->getCode() === '23000')
                 ? 'Ya existe un producto con ese código.'
                 : 'Error al guardar el producto.';
             $vista = 'nuevo';
+        }
+    }
+}
+
+//-----------------------------------------------------
+//ACCION: Editar producto
+//-----------------------------------------------------
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar'])) 
+{
+    $codigoOriginal = $_POST['codigo_original'] ?? '';
+    $codigo       = trim($_POST['codigo'] ?? '');
+    $nombre       = trim($_POST['nombre'] ?? '');
+    $idCategoria  = $_POST['categoria'] ?: null;
+    $precioCompra = (float)($_POST['precio_compra'] ?? 0);
+    $precioVenta  = (float)($_POST['precio_venta'] ?? 0);
+    $iva          = (float)($_POST['iva'] ?? 0);
+    $stockActual  = (int)($_POST['stock_actual'] ?? 0);
+    $stockMinimo  = (int)($_POST['stock_minimo'] ?? 0);
+
+    if ($codigo === '' || $nombre === '') 
+    {
+        $error = 'Código y nombre del producto son obligatorios.';
+        $vista = 'editar';
+        $_GET['codigo'] = $codigoOriginal;
+    } elseif ($precioCompra < 0 || $precioVenta < 0 || $stockActual < 0 || $stockMinimo < 0) 
+    {
+        $error = 'Los precios y el stock no pueden ser negativos.';
+        $vista = 'editar';
+        $_GET['codigo'] = $codigoOriginal;
+    } else 
+    {
+        try 
+        {
+            $stmt = $pdo->prepare(
+                "UPDATE productos SET 
+                 codigoProducto = ?, nombreProducto = ?, precioCompra = ?, precioVenta = ?, iva = ?, stockActual = ?, stockMinimo = ?, ID_Categoria = ?
+                 WHERE codigoProducto = ?"
+            );
+            $stmt->execute([$codigo, $nombre, $precioCompra, $precioVenta, $iva, $stockActual, $stockMinimo, $idCategoria, $codigoOriginal]);
+            $exito = "Producto \"$nombre\" actualizado correctamente.";
+            $vista = 'lista';
+        } catch (PDOException $e) 
+        {
+            $error = ($e->getCode() === '23000')
+                ? 'Ya existe otro producto con ese código.'
+                : 'Error al actualizar el producto.';
+            $vista = 'editar';
+            $_GET['codigo'] = $codigoOriginal;
         }
     }
 }
@@ -80,6 +138,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_consultar'])) 
     $filtroCategoria = trim($_POST['categoria_consultar'] ?? '');
     $vista = 'lista';
 }
+
+//-----------------------------------------------------
+//Cargar datos para edicion
+//-----------------------------------------------------
+
+$productoEditar = null;
+if ($vista === 'editar') 
+{
+    $codigoGet = $_GET['codigo'] ?? '';\
+
+    if ($codigoGet !== '') 
+    {
+        $stmt = $pdo->prepare("SELECT * FROM productos WHERE codigoProducto = ?");
+        $stmt->execute([$codigoGet]);
+        $productoEditar = $stmt->fetch();
+        if (!$productoEditar) 
+        {
+            $error = 'Producto no encontrado.';
+            $vista = 'lista';
+        }
+    } else 
+    {
+        $error = 'Código de producto no válido.';
+        $vista = 'lista';
+    }
+}
+
 
 // ----------------------------------------------------
 // Listado de productos (aplica filtro si viene de "Consultar")
@@ -163,24 +248,79 @@ $productos = $stmt->fetchAll();
                     </div>
                     <div class="form-grupo">
                         <label for="precio_venta">Precio de venta</label>
-                        <input type="number" step="0.01" id="precio_venta" name="precio_venta" required>
+                        <input type="number" step="0.01" min="0" id="precio_venta" name="precio_venta" required>
                     </div>
                     <div class="form-grupo">
                         <label for="iva">IVA (%)</label>
-                        <input type="number" step="0.01" id="iva" name="iva" value="0">
+                        <input type="number" step="0.01" min="0" id="iva" name="iva" value="0">
                     </div>
                     <div class="form-grupo">
                         <label for="stock_actual">Stock actual</label>
-                        <input type="number" id="stock_actual" name="stock_actual" value="0" required>
+                        <input type="number" id="stock_actual" min="0" name="stock_actual" value="0" required>
                     </div>
                     <div class="form-grupo">
                         <label for="stock_minimo">Stock mínimo</label>
-                        <input type="number" id="stock_minimo" name="stock_minimo" value="0" required>
+                        <input type="number" min="0" id="stock_minimo" name="stock_minimo" value="0" required>
                     </div>
 
                     <div class="acciones-form">
                         <a href="productos.php" class="btn">Cancelar</a>
                         <button type="submit" name="accion_nuevo" class="btn btn-rojo">AGREGAR PRODUCTO</button>
+                    </div>
+                </form>
+            </div>
+
+            <?php elseif ($vista === 'editar' && $productoEditar): ?>
+            <div class="form-box">
+                <h2>Editar producto</h2>
+                <form method="POST" action="productos.php">
+                    <input type="hidden" name="codigo_original" value="<?= h($productoEditar['codigoProducto']) ?>">
+                    
+                    <div class="form-grupo">
+                        <label for="nombre">Nombre producto</label>
+                        <input type="text" id="nombre" name="nombre" value="<?= h($productoEditar['nombreProducto']) ?>" required>
+                    </div>
+                    <div class="form-grupo">
+                        <label for="codigo">Código</label>
+                        <input type="text" id="codigo" name="codigo" value="<?= h($productoEditar['codigoProducto']) ?>" required>
+                    </div>
+                    <div class="form-grupo">
+                        <label for="categoria">Categoría</label>
+                        <select id="categoria" name="categoria">
+                            <option value="">-- Seleccionar --</option>
+                            <?php foreach ($categorias as $c): ?>
+                                <option value="<?= (int)$c['ID_Categoria'] ?>" <?= ($c['ID_Categoria'] == $productoEditar['ID_Categoria']) ? 'selected' : '' ?>>
+                                    <?= h($c['nombreCategoria']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <h2 style="margin-top:18px;">Información comercial</h2>
+                    <div class="form-grupo">
+                        <label for="precio_compra">Precio de compra</label>
+                        <input type="number" step="0.01" min="0" id="precio_compra" name="precio_compra" value="<?= (float)$productoEditar['precioCompra'] ?>" required>
+                    </div>
+                    <div class="form-grupo">
+                        <label for="precio_venta">Precio de venta</label>
+                        <input type="number" step="0.01" min="0" id="precio_venta" name="precio_venta" value="<?= (float)$productoEditar['precioVenta'] ?>" required>
+                    </div>
+                    <div class="form-grupo">
+                        <label for="iva">IVA (%)</label>
+                        <input type="number" step="0.01" min="0" id="iva" name="iva" value="<?= (float)$productoEditar['iva'] ?>">
+                    </div>
+                    <div class="form-grupo">
+                        <label for="stock_actual">Stock actual</label>
+                        <input type="number" min="0" id="stock_actual" name="stock_actual" value="<?= (int)$productoEditar['stockActual'] ?>" required>
+                    </div>
+                    <div class="form-grupo">
+                        <label for="stock_minimo">Stock mínimo</label>
+                        <input type="number" min="0" id="stock_minimo" name="stock_minimo" value="<?= (int)$productoEditar['stockMinimo'] ?>" required>
+                    </div>
+
+                    <div class="acciones-form">
+                        <a href="productos.php" class="btn">Cancelar</a>
+                        <button type="submit" name="accion_editar" class="btn btn-rojo">GUARDAR CAMBIOS</button>
                     </div>
                 </form>
             </div>
@@ -229,6 +369,7 @@ $productos = $stmt->fetchAll();
                     <th>Precio</th>
                     <th>Stock</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -249,6 +390,8 @@ $productos = $stmt->fetchAll();
                                     <?= $bajo ? 'Bajo' : 'OK' ?>
                                 </span>
                             </td>
+                            <td>
+                                <a style="text-decoration:none;" href="productosphp?vista=editar&codigo=<?= urlencode($p['codigoProducto']) ?>" title="Editar Producto"> Editar</a>"
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
