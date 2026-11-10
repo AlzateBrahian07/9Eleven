@@ -124,7 +124,6 @@ Se incluye al inicio de cada página y hace tres cosas:
 
 ## Base de datos
 
-Motor: MariaDB 10.11. Script de creación: [`db_9eleven.sql`](db_9eleven.sql).
 
 Motor: MariaDB. Script de creación e importación de datos de ejemplo: [`db_9eleven.sql`](db_9eleven.sql) (crea las tablas, relaciones y unos pocos datos de prueba; la base se llama `db_9eleven`).
 
@@ -134,6 +133,59 @@ Motor: MariaDB. Script de creación e importación de datos de ejemplo: [`db_9el
 administrador ──< ventas ──< detalle_ventas >── productos >── categorias
                                                                   ^
                                           proveedores ────────────┘
+
+```
+
+```mermaid
+erDiagram
+    administrador ||--o{ ventas : registra
+    ventas ||--|{ detalle_ventas : contiene
+    productos ||--o{ detalle_ventas : "se vende en"
+    categorias |o--o{ productos : clasifica
+    categorias |o--o{ proveedores : "se surte por"
+
+    administrador {
+        int ID_Administrador PK
+        varchar email UK
+        varchar contrasena
+    }
+    categorias {
+        int ID_Categoria PK
+        varchar nombreCategoria
+    }
+    productos {
+        int ID_Producto PK
+        varchar codigoProducto UK
+        varchar nombreProducto
+        text informacionGeneral
+        double precioCompra
+        double precioVenta
+        double iva
+        int stockActual
+        int stockMinimo
+        int ID_Categoria FK
+    }
+    proveedores {
+        int ID_Proveedor PK
+        varchar nombreEmpresa
+        varchar telefono
+        varchar contacto
+        int ID_Categoria FK
+    }
+    ventas {
+        int ID_Venta PK
+        date fechaVenta
+        double totalVenta
+        int ID_Administrador FK
+    }
+    detalle_ventas {
+        int ID_Detalle PK
+        int ID_Venta FK
+        int ID_Producto FK
+        int cantidad
+        double precioUnitario
+        double subtotal
+    }
 ```
 
 | Tabla | Descripción | Campos principales |
@@ -356,7 +408,7 @@ El listado completo de tareas, con descripción y criterios de aceptación en Is
 
 El **Documento Funcional** (PDF) incluye: acta de apertura, hallazgos, prototipos de interfaz (GUI), levantamiento y revisión de requerimientos, casos de uso, diagramas de robustez, estado, actividad y secuencia, diagrama de clases, ER extendido, paquetes, componentes y diseño de datos.
 
-Se recomienda guardarlo en `docs/` dentro del repositorio.
+Resumen funcional en [`docs/Documento_Funcional_9Eleven.pdf`](docs/Documento_Funcional_9Eleven.pdf).
 
 ---
 
