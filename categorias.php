@@ -10,30 +10,30 @@ $vista = $_GET['vista'] ?? 'lista';
 // ----------------------------------------------------
 // ACCIÓN: Nueva categoría
 // ----------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nueva'])) 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nueva']))
 {
     $nombre = trim($_POST['nombre'] ?? '');
 
-    if ($nombre === '') 
+    if ($nombre === '')
     {
         $error = 'El nombre de la categoría es obligatorio.';
         $vista = 'nueva';
-    } else 
+    } else
     {
-        $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria =?");
+        $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria = ?");
         $stmtcheck->execute([$nombre]);
 
         if ($stmtcheck->fetchColumn() > 0)
-            {
-                $error = "Ya existe esta categoria con el nombre \"$nombre\".";
-                $vista = 'nueva';
-            } else 
-            {
-                $stmt = $pdo->prepare("INSERT INTO categorias (nombreCategorias) VALUES (?)");
-                $stmt->execute([$nombre]);
-                $exito = "Categoria \"$nombre\" creada correctamente";
-                $vista = 'lista';
-            }
+        {
+            $error = "Ya existe esta categoria con el nombre \"$nombre\".";
+            $vista = 'nueva';
+        } else
+        {
+            $stmt = $pdo->prepare("INSERT INTO categorias (nombreCategoria) VALUES (?)");
+            $stmt->execute([$nombre]);
+            $exito = "Categoria \"$nombre\" creada correctamente";
+            $vista = 'lista';
+        }
     }
 }
 
