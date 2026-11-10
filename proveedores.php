@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo']))
         $error = 'El nombre del proveedor es obligatorio.';
         $vista = 'nuevo';
     } elseif ($telefono !== '' && !preg_match('/^[0-9\+\-\(\)\s]{7,20}$/',$telefono)){
-        $error = 'El formato del telefono no es valido'
+        $error = 'El formato del telefono no es valido';
         $vista = 'nuevo';
     }else
     {
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nuevo']))
 //-----------------------------------------------------
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar']))
     {
-        $idProveedor = (int)($_POST['Id_Proveedor']?? 0);
+        $idProveedor = (int)($_POST['id_proveedor'] ?? 0);
         $nombreEmpresa = trim($_POST['nombre_proveedor']?? '');
         $contacto = trim($_POST['contacto']?? '');
         $telefono = trim($_POST['telefono']?? '');
@@ -73,23 +73,33 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar']))
 // ACCIÓN: Eliminar proveedor
 // ----------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_eliminar'])) {
-    $nombreBuscar = trim($_POST['nombre_empresa_eliminar'] ?? '');
+    $idEliminar = (int)($_POST['id_eliminar'] ?? 0);
+    $nombreEliminar = '';
 
-    if ($nombreBuscar === '') {
-        $error = 'Escribe el nombre de la empresa a eliminar.';
-        $vista = 'eliminar';
+    if (!csrfValido()) {
+        $error = 'Token de seguridad inválido. Recarga la página e inténtalo de nuevo.';
+    } elseif ($idEliminar <= 0) {
+        $error = 'Proveedor no válido.';
     } else {
-        $stmt = $pdo->prepare("DELETE FROM proveedores WHERE nombreEmpresa = ?");
-        $stmt->execute([$nombreBuscar]);
+        try {
+            $stmtNombre = $pdo->prepare("SELECT nombreEmpresa FROM proveedores WHERE ID_Proveedor = ?");
+            $stmtNombre->execute([$idEliminar]);
+            $nombreEliminar = $stmtNombre->fetchColumn();
 
-        if ($stmt->rowCount() > 0) {
-            $exito = "Proveedor \"$nombreBuscar\" eliminado correctamente.";
-            $vista = 'lista';
-        } else {
-            $error = "No se encontró un proveedor llamado \"$nombreBuscar\".";
-            $vista = 'eliminar';
+            if ($nombreEliminar === false) {
+                $error = 'No se encontró el proveedor.';
+            } else {
+                $stmt = $pdo->prepare("DELETE FROM proveedores WHERE ID_Proveedor = ?");
+                $stmt->execute([$idEliminar]);
+                $exito = "Proveedor \"$nombreEliminar\" eliminado correctamente.";
+            }
+        } catch (PDOException $e) {
+            $error = ($e->getCode() === '23000')
+                ? "No se puede eliminar \"$nombreEliminar\": el proveedor tiene registros asociados."
+                : 'Error al eliminar el proveedor.';
         }
     }
+    $vista = 'lista';
 }
 
 // ----------------------------------------------------
@@ -253,20 +263,6 @@ $proveedores = $stmt->fetchAll();
                     </form>
                 </div>
 
-            <?php elseif ($vista === 'eliminar'): ?>
-                <div class="form-box" style="margin:15px auto;">
-                    <h2>Eliminar proveedor</h2>
-                    <form method="POST" action="proveedores.php" onsubmit="return confirm('¿Seguro que deseas eliminar este proveedor?');">
-                        <div class="form-grupo">
-                            <label for="nombre_empresa_eliminar">Nombre empresa</label>
-                            <input type="text" id="nombre_empresa_eliminar" name="nombre_empresa_eliminar" required>
-                        </div>
-                        <div class="acciones-form">
-                            <a href="proveedores.php" class="btn">Cancelar</a>
-                            <button type="submit" name="accion_eliminar" class="btn btn-rojo">Eliminar</button>
-                        </div>
-                    </form>
-                </div>
             <?php endif; ?>
 
             <table>
@@ -292,7 +288,12 @@ $proveedores = $stmt->fetchAll();
                                 <td><?= h($p['telefono'] ?? '—') ?></td>
                                 <td><?= h($p['nombreCategoria'] ?? '—') ?></td>
                                 <td>
-                                    <a href="proveedores.php?vista=editar&id=<?= $p['ID_Proveedor'] ?>" style="color: #007bff; text-decoration: none; font-weight: bold;">Editar</a>
+                                    <a href="proveedores.php?vista=editar&id=<?= (int)$p['ID_Proveedor'] ?>" style="color: #007bff; text-decoration: none; font-weight: bold;">Editar</a>
+                                    <form method="POST" action="proveedores.php" style="display:inline;" onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
+                                    <?= csrfCampo() ?>
+                                    <input type="hidden" name="id_eliminar" value="<?= (int)$p['ID_Proveedor'] ?>">
+                                    <button type="submit" name="accion_eliminar" class="btn btn-rojo">Eliminar</button>
+                                </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -300,11 +301,6 @@ $proveedores = $stmt->fetchAll();
                 </tbody>
             </table>
 
-            <?php if ($vista === 'lista'): ?>
-                <div style="text-align:right; margin-top:15px;">
-                    <a href="proveedores.php?vista=eliminar" class="btn btn-rojo">+ Eliminar proveedor</a>
-                </div>
-            <?php endif; ?>
         </div>
     </main>
 </div>
