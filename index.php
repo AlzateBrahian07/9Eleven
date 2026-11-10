@@ -90,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_login'])) {
         </form>
 
         <div class="link-secundario">
+            <a href="olvideContrasena.php">¿Olvidaste tu contraseña?</a> ·
             <a href="cambiarContrasena.php">Cambiar contraseña</a>
         </div>
     </div>
