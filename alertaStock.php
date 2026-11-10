@@ -5,10 +5,12 @@ requerirLogin();
 $paginaActual = 'alertaStock.php';
 
 $productos = $pdo->query(
-    "SELECT nombreProducto, stockActual, stockMinimo
-     FROM productos
-     WHERE stockActual <= stockMinimo
-     ORDER BY (stockMinimo - stockActual) DESC"
+    "SELECT p.nombreProducto, p.stockActual, p.stockMinimo,
+            c.nombreCategoria
+     FROM productos p
+     LEFT JOIN categorias c ON p.ID_Categoria = c.ID_Categoria
+     WHERE p.stockActual <= p.stockMinimo
+     ORDER BY (p.stockMinimo - p.stockActual) DESC"
 )->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -42,6 +44,7 @@ $productos = $pdo->query(
                     <div class="alerta-item">
                         <div class="info">
                             <b><?= h($p['nombreProducto']) ?></b>
+                            <span>Categoría: <?= h($p['nombreCategoria'] ?? 'Sin categoría') ?></span>
                             <span>Stock actual: <?= (int)$p['stockActual'] ?> und — Mínimo: <?= (int)$p['stockMinimo'] ?> und</span>
                         </div>
                         <span class="alerta-tag"><?= $critico ? 'CRÍTICO' : 'BAJO' ?></span>
