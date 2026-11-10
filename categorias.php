@@ -46,37 +46,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar']))
     $nombreNuevo = trim($_POST['nombre_nuevo'] ?? '');
 
     if ($nombreActual === '' || $nombreNuevo === '')
+    {
+        $error = "Ambos campos son obligatorios";
+        $vista = 'editar';
+    } else
+    {
+        // Validar que el nuevo nombre no exista en otra categoria
+        $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria = ?");
+        $stmtcheck->execute([$nombreNuevo]);
+
+        if ($stmtcheck->fetchColumn() > 0)
         {
-            $error = "Ambos campos son obligatorios";
+            $error = "Ya existe una categoria con el nombre \"$nombreNuevo\".";
             $vista = 'editar';
         } else
         {
-            //Validar que el nuevo nombre no existe en otra categoria
-            $stmtcheck = $pdo->prepare("SELECT COUNT(*) FROM categorias WHERE nombreCategoria =?");
-            $stmtcheck->execute([$nombreNuevo]);
+            // Actualiza el nombre
+            $stmt = $pdo->prepare("UPDATE categorias SET nombreCategoria = ? WHERE nombreCategoria = ?");
+            $stmt->execute([$nombreNuevo, $nombreActual]);
 
-            if ($stmtcheck->fetchColumn()>0)
-                {
-                    $error = "Ya existe una categoria con el nombre \"$nombre\".";
-                    $vista = 'editar';
-                } else 
-                {
-                    //actualiza el nombre
-                    $stmt = $pdo->prepare("UPDATE categorias SET nombreCategoria = ? WHERE nombreCategoria = ?");
-                    $stmt->execute([$nombreNuevo,$nombreActual]);
-                }
-                if ($stmt->rowcount() > 0)
-                    {
-                        $exito = "Categoria \"$nombreActual\" renombrada a \"$nombreNuevo\" correctamente.";
-                        $vista = 'lista';
-                    } else 
-                    {
-                        $error = "No se encontro una categoria llamada \"$nombreActual\".";
-                        $vista = 'editar';
-                    }
+            if ($stmt->rowCount() > 0)
+            {
+                $exito = "Categoria \"$nombreActual\" renombrada a \"$nombreNuevo\" correctamente.";
+                $vista = 'lista';
+            } else
+            {
+                $error = "No se encontro una categoria llamada \"$nombreActual\".";
+                $vista = 'editar';
+            }
         }
+    }
 }
-
 
 // ----------------------------------------------------
 // ACCIÓN: Eliminar categoría
