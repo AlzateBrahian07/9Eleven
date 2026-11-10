@@ -109,23 +109,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_editar']))
 // ACCIÓN: Eliminar producto
 // ----------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_eliminar'])) {
-    $nombreBuscar = trim($_POST['nombre_eliminar'] ?? '');
+    $idEliminar = (int)($_POST['id_eliminar'] ?? 0);
+    $nombreEliminar = '';
 
-    if ($nombreBuscar === '') {
-        $error = 'Escribe el nombre del producto a eliminar.';
-        $vista = 'eliminar';
+    if (!csrfValido()) {
+        $error = 'Token de seguridad inválido. Recarga la página e inténtalo de nuevo.';
+    } elseif ($idEliminar <= 0) {
+        $error = 'Producto no válido.';
     } else {
-        $stmt = $pdo->prepare("DELETE FROM productos WHERE nombreProducto = ?");
-        $stmt->execute([$nombreBuscar]);
+        try {
+            $stmtNombre = $pdo->prepare("SELECT nombreProducto FROM productos WHERE ID_Producto = ?");
+            $stmtNombre->execute([$idEliminar]);
+            $nombreEliminar = $stmtNombre->fetchColumn();
 
-        if ($stmt->rowCount() > 0) {
-            $exito = "Producto \"$nombreBuscar\" eliminado correctamente.";
-            $vista = 'lista';
-        } else {
-            $error = "No se encontró un producto llamado \"$nombreBuscar\".";
-            $vista = 'eliminar';
+            if ($nombreEliminar === false) {
+                $error = 'No se encontró el producto.';
+            } else {
+                $stmt = $pdo->prepare("DELETE FROM productos WHERE ID_Producto = ?");
+                $stmt->execute([$idEliminar]);
+                $exito = "Producto \"$nombreEliminar\" eliminado correctamente.";
+            }
+        } catch (PDOException $e) {
+            $error = ($e->getCode() === '23000')
+                ? "No se puede eliminar \"$nombreEliminar\": el producto tiene ventas registradas."
+                : 'Error al eliminar el producto.';
         }
     }
+    $vista = 'lista';
 }
 
 // ----------------------------------------------------
@@ -146,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_consultar'])) 
 $productoEditar = null;
 if ($vista === 'editar') 
 {
-    $codigoGet = $_GET['codigo'] ?? '';\
+    $codigoGet = $_GET['codigo'] ?? '';
 
     if ($codigoGet !== '') 
     {
@@ -213,7 +223,6 @@ $productos = $stmt->fetchAll();
 
         <div class="barra-acciones">
             <a href="productos.php?vista=nuevo" class="btn">+ Nuevo Producto</a>
-            <a href="productos.php?vista=eliminar" class="btn btn-rojo">X Eliminar Producto</a>
             <a href="productos.php?vista=consultar" class="btn">= Consultar Producto</a>
         </div>
 
@@ -344,20 +353,6 @@ $productos = $stmt->fetchAll();
                 </form>
             </div>
 
-        <?php elseif ($vista === 'eliminar'): ?>
-            <div class="form-box">
-                <h2>Eliminar producto</h2>
-                <form method="POST" action="productos.php" onsubmit="return confirm('¿Seguro que deseas eliminar este producto?');">
-                    <div class="form-grupo">
-                        <label for="nombre_eliminar">Nombre producto</label>
-                        <input type="text" id="nombre_eliminar" name="nombre_eliminar" required>
-                    </div>
-                    <div class="acciones-form">
-                        <a href="productos.php" class="btn">Cancelar</a>
-                        <button type="submit" name="accion_eliminar" class="btn btn-rojo">Eliminar</button>
-                    </div>
-                </form>
-            </div>
         <?php endif; ?>
 
         <table>
@@ -374,7 +369,7 @@ $productos = $stmt->fetchAll();
             </thead>
             <tbody>
                 <?php if (empty($productos)): ?>
-                    <tr><td colspan="6" class="sin-datos">No se encontraron productos.</td></tr>
+                    <tr><td colspan="7" class="sin-datos">No se encontraron productos.</td></tr>
                 <?php else: ?>
                     <?php foreach ($productos as $p):
                         $bajo = $p['stockActual'] <= $p['stockMinimo'];
@@ -391,7 +386,13 @@ $productos = $stmt->fetchAll();
                                 </span>
                             </td>
                             <td>
-                                <a style="text-decoration:none;" href="productosphp?vista=editar&codigo=<?= urlencode($p['codigoProducto']) ?>" title="Editar Producto"> Editar</a>"
+                                <a style="text-decoration:none;" href="productos.php?vista=editar&codigo=<?= urlencode($p['codigoProducto']) ?>" title="Editar producto">Editar</a>
+                                <form method="POST" action="productos.php" style="display:inline;" onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
+                                    <?= csrfCampo() ?>
+                                    <input type="hidden" name="id_eliminar" value="<?= (int)$p['ID_Producto'] ?>">
+                                    <button type="submit" name="accion_eliminar" class="btn btn-rojo">Eliminar</button>
+                                </form>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
