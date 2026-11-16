@@ -51,6 +51,116 @@ function filaEntrada(array $productos): string
     $html .= '</tr>';
     return $html;
 }
+
+// Mensaje tras registrar una entrada (se redirige para no reenviar el formulario al recargar)
+$exito = '';
+if (isset($_GET['ok']) && (int)$_GET['ok'] > 0) {
+    $exito = 'Entrada E' . str_pad((string)(int)$_GET['ok'], 4, '0', STR_PAD_LEFT)
+           . ' registrada. El stock de los productos fue actualizado.';
+}
+
+// Listas indexadas por ID, para comprobar que lo que llega del formulario existe
+$proveedoresPorId = array_column($proveedores, null, 'ID_Proveedor');
+$productosPorId   = array_column($productos, null, 'ID_Producto');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion_nueva'])) {
+    $vista = 'nueva';
+
+    // Limpia un valor recibido: solo texto o números, sin espacios sobrantes
+    $txt = function ($v): string {
+        return is_scalar($v) ? trim((string)$v) : '';
+    };
+
+    $fecha     = $txt($_POST['fecha'] ?? '');
+    $proveedor = (int)$txt($_POST['proveedor'] ?? '');
+
+    $ids        = is_array($_POST['producto'] ?? null) ? $_POST['producto'] : [];
+    $cantidades = is_array($_POST['cantidad'] ?? null) ? $_POST['cantidad'] : [];
+    $precios    = is_array($_POST['precio'] ?? null)   ? $_POST['precio']   : [];
+
+    // Arma la lista de líneas, ignorando las filas completamente vacías
+    $lineas = [];
+    foreach ($ids as $i => $idProd) {
+        $idProd    = (int)$txt($idProd);
+        $cantTxt   = $txt($cantidades[$i] ?? '');
+        $precioTxt = $txt($precios[$i] ?? '');
+        if ($idProd === 0 && $cantTxt === '' && $precioTxt === '') {
+            continue;
+        }
+        $lineas[] = ['producto' => $idProd, 'cantidad' => $cantTxt, 'precio' => $precioTxt];
+    }
+
+    $fechaObj    = DateTime::createFromFormat('Y-m-d', $fecha);
+    $fechaValida = $fechaObj && $fechaObj->format('Y-m-d') === $fecha;
+
+    $lineasOk = [];
+    $total    = 0.0;
+
+    if (!$fechaValida) {
+        $error = 'La fecha no es válida.';
+    } elseif ($fecha > date('Y-m-d')) {
+        $error = 'La fecha de la entrada no puede ser futura.';
+    } elseif (!isset($proveedoresPorId[$proveedor])) {
+        $error = 'Selecciona un proveedor válido.';
+    } elseif (empty($lineas)) {
+        $error = 'Agrega al menos un producto.';
+    } else {
+        foreach ($lineas as $n => $l) {
+            $num = $n + 1;
+            if (!isset($productosPorId[$l['producto']])) {
+                $error = "Línea $num: selecciona un producto.";
+                break;
+            }
+            $cant = filter_var($l['cantidad'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000000]]);
+            if ($cant === false) {
+                $error = "Línea $num: la cantidad debe ser un número entero mayor a 0.";
+                break;
+            }
+            if (!is_numeric($l['precio']) || !is_finite((float)$l['precio'])
+                || (float)$l['precio'] < 0 || (float)$l['precio'] > 999999999) {
+                $error = "Línea $num: el precio unitario no es válido.";
+                break;
+            }
+            $precio = round((float)$l['precio'], 2);
+            $sub    = $cant * $precio;
+            $lineasOk[] = ['producto' => $l['producto'], 'cantidad' => $cant, 'precio' => $precio, 'subtotal' => $sub];
+            $total += $sub;
+        }
+    }
+
+    if ($error === '') {
+        try {
+            $pdo->beginTransaction();
+
+            $pdo->prepare(
+                "INSERT INTO entradas (fechaEntrada, totalEntrada, ID_Proveedor, ID_Administrador)
+                 VALUES (?, ?, ?, ?)"
+            )->execute([$fecha, $total, $proveedor, $_SESSION['admin_id']]);
+            $idEntrada = (int)$pdo->lastInsertId();
+
+            $insDetalle = $pdo->prepare(
+                "INSERT INTO detalle_entradas (ID_Entrada, ID_Producto, cantidad, precioUnitario, subtotal)
+                 VALUES (?, ?, ?, ?, ?)"
+            );
+            $sumaStock = $pdo->prepare("UPDATE productos SET stockActual = stockActual + ? WHERE ID_Producto = ?");
+
+            foreach ($lineasOk as $l) {
+                $insDetalle->execute([$idEntrada, $l['producto'], $l['cantidad'], $l['precio'], $l['subtotal']]);
+                $sumaStock->execute([$l['cantidad'], $l['producto']]);
+            }
+
+            $pdo->commit();
+            header('Location: entradas.php?ok=' . $idEntrada);
+            exit;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('9Eleven entradas: ' . $e->getMessage());
+            $error = 'No se pudo registrar la entrada. Inténtalo de nuevo.';
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -70,6 +180,10 @@ function filaEntrada(array $productos): string
         <h1>Entradas de mercancía</h1>
         <p>        <?php if ($error): ?>
             <div class="mensaje-error"><?= h($error) ?></div>
+        <?php endif; ?>
+
+        <?php if ($exito): ?>
+            <div class="mensaje-ok"><?= h($exito) ?></div>
         <?php endif; ?>
 
         <div class="barra-acciones">
