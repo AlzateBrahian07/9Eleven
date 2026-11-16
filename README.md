@@ -85,6 +85,7 @@ Estructura de archivos según el repositorio original:
 ├── productos.php           # Módulo de productos
 ├── categorias.php          # Módulo de categorías
 ├── proveedores.php         # Módulo de proveedores
+├── entradas.php            # Entradas de mercancía (historial y registro)
 ├── ventas.php              # Módulo de ventas
 ├── reportes.php            # Módulo de reportes
 ├── cambiarContrasena.php   # Cambio de contraseña (pide email y contraseña actual)
@@ -143,6 +144,10 @@ erDiagram
     productos ||--o{ detalle_ventas : "se vende en"
     categorias |o--o{ productos : clasifica
     categorias |o--o{ proveedores : "se surte por"
+    proveedores |o--o{ entradas : surte
+    administrador ||--o{ entradas : registra
+    entradas ||--|{ detalle_entradas : contiene
+    productos ||--o{ detalle_entradas : "se recibe en"
 
     administrador {
         int ID_Administrador PK
@@ -185,6 +190,21 @@ erDiagram
         int cantidad
         double precioUnitario
         double subtotal
+    entradas {
+        int ID_Entrada PK
+        date fechaEntrada
+        double totalEntrada
+        int ID_Proveedor FK
+        int ID_Administrador FK
+    }
+    detalle_entradas {
+        int ID_Detalle PK
+        int ID_Entrada FK
+        int ID_Producto FK
+        int cantidad
+        double precioUnitario
+        double subtotal
+    }
     }
 ```
 
@@ -196,6 +216,8 @@ erDiagram
 | `proveedores` | Empresas que surten mercancía | `ID_Proveedor` (PK), `nombreEmpresa`, `telefono`, `contacto`, `ID_Categoria` (FK) |
 | `ventas` | Encabezado de cada venta | `ID_Venta` (PK), `fechaVenta` (DATE), `totalVenta`, `ID_Administrador` (FK) |
 | `detalle_ventas` | Líneas de cada venta | `ID_Detalle` (PK), `ID_Venta` (FK), `ID_Producto` (FK), `cantidad`, `precioUnitario`, `subtotal` |
+| `entradas` | Encabezado de cada entrada de mercancía | `ID_Entrada` (PK), `fechaEntrada` (DATE), `totalEntrada`, `ID_Proveedor` (FK), `ID_Administrador` (FK) |
+| `detalle_entradas` | Líneas de cada entrada | `ID_Detalle` (PK), `ID_Entrada` (FK), `ID_Producto` (FK), `cantidad`, `precioUnitario`, `subtotal` |
 
 Datos de ejemplo incluidos: 1 administrador, 4 categorías (Bebidas, Snacks, Lácteos, Aseo), 3 productos, 2 proveedores y 1 venta.
 
@@ -211,9 +233,12 @@ Datos de ejemplo incluidos: 1 administrador, 4 categorías (Bebidas, Snacks, Lá
 | una categoría | `productos.ID_Categoria` y `proveedores.ID_Categoria` quedan en `NULL` |
 | una venta | se borran sus líneas de `detalle_ventas` (CASCADE) |
 | un producto que ya se vendió | la base lo **rechaza** (no hay `ON DELETE`) |
+| un producto que ya se recibió en una entrada | la base lo **rechaza** (no hay `ON DELETE`) |
+| un proveedor con entradas | `entradas.ID_Proveedor` queda en `NULL` (el historial se conserva) |
+| una entrada | se borran sus líneas de `detalle_entradas` (CASCADE) |
 | el administrador con ventas | la base lo **rechaza** |
 
-- **Falta una tabla de entradas de mercancía.** El requerimiento RF-12 pide registrar fecha, proveedor, producto, cantidad y precio unitario, y el modelo no lo soporta.
+- - **Las entradas de mercancía** se guardan en dos tablas, igual que las ventas: el encabezado en `entradas` y cada producto recibido en `detalle_entradas`, con el precio unitario del momento. Al registrar una entrada se suma la cantidad a `productos.stockActual` dentro de una transacción.
 - **Las contraseñas están en texto plano** en el script de ejemplo. Ver la advertencia de seguridad más abajo.
 
 ---
