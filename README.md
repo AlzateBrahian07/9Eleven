@@ -420,7 +420,6 @@ El documento de revisión de requerimientos aprobó el alcance pero dejó **tres
 | Pendiente | Origen |
 |-----------|--------|
 | Editar productos, categorías y proveedores (hoy solo hay crear/consultar/eliminar) | CU 2.2.4, 2.3.4, 2.4.4 |
-| Registro de **entradas de mercancía** con proveedor, producto, cantidad y precio | RF-12 |
 | Caso de uso explícito de **nueva venta** | CU 2.5.1 |
 | Reportes que faltan: movimientos de inventario, stock bajo y valor del inventario | RF-14 |
 | Recuperar una contraseña olvidada por correo | RF-03 / CU 1.2 |
